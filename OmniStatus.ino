@@ -1,14 +1,16 @@
 #include <Arduino.h>
+#include "OTA.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "credentials.h"
-#include <Arduino_JSON.h>
 #include "Fetch.h"
+#include <Arduino_JSON.h>
 #include <Wire.h>
-#include <hd44780.h>                       // main hd44780 header
+#include <hd44780.h>  
+#include "GarageHelper.h"
+// main hd44780 header
 #include <hd44780ioClass/hd44780_I2Cexp.h> // i2c expander i/o class header
 #include <TimeLib.h>
-
+#include "SpotifyHelper.h"
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
 #else
@@ -18,17 +20,19 @@
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
-
+String clearString = "                ";
 hd44780_I2Cexp lcd; // declare lcd object: auto locate & auto config expander chip
 struct tm timeinfo;
-String access_token;
+SpotifyHelper spotifyHelper;
+GarageHelper garageHelper;
 // LCD geometry
 const int LCD_COLS = 16;
 const int LCD_ROWS = 2;
-String lastsong = "";
-String garageStatus = "Initializing...";
-String thissong = "";
-String clearString = "                ";
+
+int garageStatus = -1;
+
+
+
 int songOffset = 0;
 
 void render(void *pvParameters);
@@ -43,6 +47,20 @@ void connectWiFi() {
   setClock();
 }
 
+
+void checkToggle(void *pvParameters);
+
+
+struct Button {
+  const uint8_t PIN;
+  uint32_t numberKeyPresses;
+  bool pressed;
+};
+
+Button button1 = {25, 0, false};
+void IRAM_ATTR isr() {
+  button1.numberKeyPresses += 1;
+}
 // Not sure if WiFiClientSecure checks the validity date of the certificate.
 // Setting clock just to be sure...
 void setClock() {
@@ -64,6 +82,9 @@ void setClock() {
   Serial.print(asctime(&timeinfo));
 }
 
+void getNowPlaying(void *pvParameters) {
+  spotifyHelper.getNowPlaying();
+}
 
 
 // the setup function runs once when you press reset or power the board
@@ -73,6 +94,7 @@ void setup() {
   Serial.begin(115200);
   int lcd_status;
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
+ ArduinoOTA.setHostname("OmniStatus");
   if (lcd_status) // non zero status means it was unsuccesful
   {
     // hd44780 has a fatalError() routine that blinks an led if possible
@@ -80,8 +102,12 @@ void setup() {
     hd44780::fatalError(lcd_status); // does not return
   }
   delay(500);
+  pinMode(button1.PIN, INPUT_PULLUP);
+  attachInterrupt(button1.PIN, isr, FALLING);
+
   connectWiFi();
-  getNowPlaying();
+
+  /* LAUNCH TASKS */
   xTaskCreatePinnedToCore(
     getNowPlaying,
     "getNowPlaying",
@@ -138,6 +164,15 @@ void setup() {
     NULL,
     ARDUINO_RUNNING_CORE
   );
+  xTaskCreatePinnedToCore(
+    checkToggle,
+    "Check Toggle Status",
+    5000,
+    NULL,
+    1,
+    NULL,
+    ARDUINO_RUNNING_CORE
+  );
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
 }
 
@@ -150,64 +185,23 @@ void loop()
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
-void updateClock(void *pvParameters) {
+void checkToggle(void *pvParameters) {
   for (;;) {
-    Serial.println("should update clock here");
-    vTaskDelay(1000);
+    if (button1.numberKeyPresses > 0) {
+      Serial.print("TOGGLE at: ");
+      Serial.println(button1.numberKeyPresses);
+      button1.numberKeyPresses = 0;
+      garageHelper.toggle();
+      
+    }
+    vTaskDelay(2000);
   }
 }
 
-String hitAPIWithToken(String token) {
-  RequestOptions options;
-  options.method = "GET";
-  options.headers["Authorization"] = "Bearer " + token;
-  Response response = fetch("https://api.spotify.com/v1/me/player/currently-playing", options);
-  JSONVar resultJSON = JSON.parse(response.text());
-  JSONVar item = resultJSON["item"];
-  JSONVar song = item["name"];
-  JSONVar album = item["album"]["name"];
-  // Serial.println(album);
-  Serial.println(item["artists"]);
-  return JSON.stringify(album) + " " + JSON.stringify(song);
-}
-void refreshToken() {
-  RequestOptions options;
-  options.method = "GET";
-  options.headers["Content-Type"] = "application/x-www-form-urlencoded";
-  options.headers["Authorization"] = BASIC_AUTH;
-  options.method = "POST";
-
-  options.body = refresh_token;
-  options.headers["Content-Length"] = options.body.text().length();
-  Serial.println("going to fetch");
-  Response response = fetch("https://accounts.spotify.com/api/token", options);
-  JSONVar resultJSON = JSON.parse(response.text());
-  access_token = resultJSON["access_token"];
-}
-
-void getNowPlaying(void *pvParameters) {
+void updateClock(void *pvParameters) {
   for (;;) {
-    // use token to hit api
-    try {
-      if (access_token.length() > 0) {
-        thissong = hitAPIWithToken(access_token);
-        if (thissong != lastsong) {
-          songOffset = 0;
-          lastsong = thissong;
-        }
-      } else {
-        refreshToken();
-      }
 
-    } catch (int whichError) {
-      Serial.println("i'm in the catch");
-      Serial.println(whichError);
-      // if token fails, refresh token then reuse
-      refreshToken();
-    }
-    // display song
-
-    vTaskDelay(15000);
+    vTaskDelay(1000);
   }
 }
 
@@ -215,57 +209,32 @@ void render(void *pvParameters) {
   for (;;) {
     lcd.setCursor(0, 0);
 
-    if (garageStatus == "Closed") {
+    if (garageStatus == 1) {
       lcd.write("            Shut");
-    } else {
+    } else if(garageStatus == 0) {
       lcd.write("            Open");
+    } else {
+      lcd.write("            ????");
     }
     // add spaces to beginning and end
-    String displaySongString = clearString + lastsong + clearString;
+    String displaySongString = clearString + spotifyHelper.lastsong + clearString;
     String stringToPrint = displaySongString.substring(songOffset, songOffset + 16);
-    Serial.println(stringToPrint);
+
     lcd.setCursor(0, 1);
     lcd.print(stringToPrint);
     if (songOffset < displaySongString.length() - 1) {
       songOffset++;
     } else {
-      Serial.println("RESET OFFSET");
-
       songOffset = 0;
     }
 
-    vTaskDelay(200);
+    vTaskDelay(250);
   }
 }
 
 void checkGarageStatus(void *pvParameters) {
   for (;;) {
-    HTTPClient http;
-
-    // Your IP address with path or Domain name with URL path
-    http.begin("http://garage.door/");
-
-    // Send HTTP POST request
-    int httpResponseCode = http.GET();
-
-    String payload = "{}";
-
-    if (httpResponseCode > 0) {
-      payload = http.getString();
-      JSONVar resultJSON = JSON.parse(payload);
-      if (JSON.typeof(resultJSON) == "undefined") {
-        Serial.println("PARSE FAILURE");
-      }
-      garageStatus = resultJSON["status"];
-
-    }
-
-    else {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
-    }
-    // Free resources
-    http.end();
+    garageStatus = garageHelper.getStatus();
     vTaskDelay(5000);
   }
 }
@@ -304,12 +273,16 @@ void TaskBlink(void *pvParameters)  // This is a task.
    the ESP32 will wait for it to recover and try again.
 */
 void keepWiFiAlive(void * pvParameters) {
-  for (;;) {
-    Serial.println("checking wifi");
-    if (WiFi.status() != WL_CONNECTED) {
-      connectWiFi();
-    } else {
-      vTaskDelay(60000);
-    }
+  for(;;){
+  ArduinoOTA.handle();
+  vTaskDelay(500);
   }
+//  for (;;) {
+//    Serial.println("checking wifi");
+//    if (WiFi.status() != WL_CONNECTED) {
+//      connectWiFi();
+//    } else {
+//      vTaskDelay(60000);
+//    }
+//  }
 }
