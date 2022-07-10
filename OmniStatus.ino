@@ -214,7 +214,7 @@ void render(void *pvParameters) {
     } else if(garageStatus == 0) {
       lcd.write("            Open");
     } else {
-      lcd.write("            ????");
+            lcd.write("            ????");
     }
     // add spaces to beginning and end
     String displaySongString = clearString + spotifyHelper.lastsong + clearString;
@@ -225,6 +225,8 @@ void render(void *pvParameters) {
     if (songOffset < displaySongString.length() - 1) {
       songOffset++;
     } else {
+      Serial.println("RESET OFFSET");
+
       songOffset = 0;
     }
 
