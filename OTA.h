@@ -1,6 +1,6 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
-#include "credentials.h"
+
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 

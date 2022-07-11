@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#define ESP32_RTOS
+#include "credentials.h"
 #include "OTA.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -94,7 +96,7 @@ void setup() {
   Serial.begin(115200);
   int lcd_status;
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
- ArduinoOTA.setHostname("OmniStatus");
+  setupOTA("OmniStatus", ssid, wifi_password);
   if (lcd_status) // non zero status means it was unsuccesful
   {
     // hd44780 has a fatalError() routine that blinks an led if possible
@@ -102,10 +104,11 @@ void setup() {
     hd44780::fatalError(lcd_status); // does not return
   }
   delay(500);
+  Serial.println("DOOD");
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, isr, FALLING);
 
-  connectWiFi();
+//  connectWiFi();
 
   /* LAUNCH TASKS */
   xTaskCreatePinnedToCore(
