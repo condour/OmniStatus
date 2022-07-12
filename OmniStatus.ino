@@ -7,12 +7,14 @@
 #include "Fetch.h"
 #include <Arduino_JSON.h>
 #include <Wire.h>
-#include <hd44780.h>  
+#include <hd44780.h>
 #include "GarageHelper.h"
 // main hd44780 header
 #include <hd44780ioClass/hd44780_I2Cexp.h> // i2c expander i/o class header
 #include <TimeLib.h>
 #include "SpotifyHelper.h"
+
+#include <TelnetStream.h>
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
 #else
@@ -43,7 +45,7 @@ void connectWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, wifi_password);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.printf("WiFi Failed!\n");
+    TelnetStream.print("WiFi Failed!\n");
     ESP.restart();
   }
   setClock();
@@ -68,20 +70,20 @@ void IRAM_ATTR isr() {
 void setClock() {
   configTime(0, 0, "pool.ntp.org");
 
-  Serial.print(F("Waiting for NTP time sync: "));
+  TelnetStream.print(F("Waiting for NTP time sync: "));
   time_t nowSecs = time(nullptr);
   while (nowSecs < 8 * 3600 * 2) {
     delay(500);
-    Serial.print(F("."));
+    TelnetStream.print(F("."));
     yield();
     nowSecs = time(nullptr);
   }
 
-  Serial.println();
+  TelnetStream.println();
 
   gmtime_r(&nowSecs, &timeinfo);
-  Serial.print(F("Current time: "));
-  Serial.print(asctime(&timeinfo));
+  TelnetStream.print(F("Current time: "));
+  TelnetStream.print(asctime(&timeinfo));
 }
 
 void getNowPlaying(void *pvParameters) {
@@ -92,8 +94,8 @@ void getNowPlaying(void *pvParameters) {
 // the setup function runs once when you press reset or power the board
 void setup() {
 
-  // initialize serial communication at 115200 bits per second:
-  //Serial.begin(115200);
+  // initialize TelnetStream communication at 115200 bits per second:
+  //TelnetStream.begin(115200);
   int lcd_status;
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
   setupOTA("OmniStatus", ssid, wifi_password);
@@ -107,7 +109,7 @@ void setup() {
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, isr, FALLING);
 
-//  connectWiFi();
+  //  connectWiFi();
 
   /* LAUNCH TASKS */
   xTaskCreatePinnedToCore(
@@ -190,11 +192,11 @@ void loop()
 void checkToggle(void *pvParameters) {
   for (;;) {
     if (button1.numberKeyPresses > 0) {
-      Serial.print("TOGGLE at: ");
-      Serial.println(button1.numberKeyPresses);
+      TelnetStream.print("TOGGLE at: ");
+      TelnetStream.println(button1.numberKeyPresses);
       button1.numberKeyPresses = 0;
       garageHelper.toggle();
-      
+
     }
     vTaskDelay(2000);
   }
@@ -213,10 +215,10 @@ void render(void *pvParameters) {
 
     if (garageStatus == 1) {
       lcd.write("            Shut");
-    } else if(garageStatus == 0) {
+    } else if (garageStatus == 0) {
       lcd.write("            Open");
     } else {
-            lcd.write("            ????");
+      lcd.write("            ????");
     }
     // add spaces to beginning and end
     String displaySongString = clearString + spotifyHelper.lastsong + clearString;
@@ -227,8 +229,6 @@ void render(void *pvParameters) {
     if (songOffset < displaySongString.length() - 1) {
       songOffset++;
     } else {
-      Serial.println("RESET OFFSET");
-
       songOffset = 0;
     }
 
@@ -277,16 +277,16 @@ void TaskBlink(void *pvParameters)  // This is a task.
    the ESP32 will wait for it to recover and try again.
 */
 void keepWiFiAlive(void * pvParameters) {
-  for(;;){
-  ArduinoOTA.handle();
-  vTaskDelay(500);
+  for (;;) {
+    ArduinoOTA.handle();
+    vTaskDelay(500);
   }
-//  for (;;) {
-//    Serial.println("checking wifi");
-//    if (WiFi.status() != WL_CONNECTED) {
-//      connectWiFi();
-//    } else {
-//      vTaskDelay(60000);
-//    }
-//  }
+  //  for (;;) {
+  //    TelnetStream.println("checking wifi");
+  //    if (WiFi.status() != WL_CONNECTED) {
+  //      connectWiFi();
+  //    } else {
+  //      vTaskDelay(60000);
+  //    }
+  //  }
 }

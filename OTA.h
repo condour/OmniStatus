@@ -13,15 +13,11 @@
 #if defined(ESP32_RTOS) && defined(ESP32)
 void ota_handle( void * parameter ) {
   for (;;) {
-static int i = 0;
+    static int i = 0;
 
-  TelnetStream.print(i++);
-  TelnetStream.print(" ");
-//  TelnetStream.print(timeStr);
-  TelnetStream.print(" A0: ");
-  TelnetStream.println(analogRead(A0));
     ArduinoOTA.handle();
     delay(3500);
+
   }
 }
 #endif
@@ -59,7 +55,7 @@ void setupOTA(const char* nameprefix, const char* ssid, const char* password) {
   // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
 
   ArduinoOTA.onStart([]() {
-  //NOTE: make .detach() here for all functions called by Ticker.h library - not to interrupt transfer process in any way.
+    //NOTE: make .detach() here for all functions called by Ticker.h library - not to interrupt transfer process in any way.
 
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH)
@@ -70,15 +66,15 @@ void setupOTA(const char* nameprefix, const char* ssid, const char* password) {
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
     Serial.println("Start updating " + type);
   });
-  
+
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
   });
-  
+
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
-  
+
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) Serial.println("\nAuth Failed");
