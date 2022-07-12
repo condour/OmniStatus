@@ -93,7 +93,7 @@ void getNowPlaying(void *pvParameters) {
 void setup() {
 
   // initialize serial communication at 115200 bits per second:
-  Serial.begin(115200);
+  //Serial.begin(115200);
   int lcd_status;
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
   setupOTA("OmniStatus", ssid, wifi_password);
@@ -104,7 +104,6 @@ void setup() {
     hd44780::fatalError(lcd_status); // does not return
   }
   delay(500);
-  Serial.println("DOOD");
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, isr, FALLING);
 

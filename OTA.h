@@ -1,12 +1,25 @@
+#ifdef ESP32
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#else
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#endif
 
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <TelnetStream.h>
 
 #if defined(ESP32_RTOS) && defined(ESP32)
 void ota_handle( void * parameter ) {
   for (;;) {
+static int i = 0;
+
+  TelnetStream.print(i++);
+  TelnetStream.print(" ");
+//  TelnetStream.print(timeStr);
+  TelnetStream.print(" A0: ");
+  TelnetStream.println(analogRead(A0));
     ArduinoOTA.handle();
     delay(3500);
   }
@@ -37,6 +50,7 @@ void setupOTA(const char* nameprefix, const char* ssid, const char* password) {
   // Port defaults to 3232
   // ArduinoOTA.setPort(3232); // Use 8266 port if you are working in Sloeber IDE, it is fixed there and not adjustable
 
+
   // No authentication by default
   // ArduinoOTA.setPassword("admin");
 
@@ -46,6 +60,7 @@ void setupOTA(const char* nameprefix, const char* ssid, const char* password) {
 
   ArduinoOTA.onStart([]() {
   //NOTE: make .detach() here for all functions called by Ticker.h library - not to interrupt transfer process in any way.
+
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH)
       type = "sketch";
@@ -74,6 +89,7 @@ void setupOTA(const char* nameprefix, const char* ssid, const char* password) {
   });
 
   ArduinoOTA.begin();
+  TelnetStream.begin();
 
   Serial.println("OTA Initialized");
   Serial.print("IP address: ");
