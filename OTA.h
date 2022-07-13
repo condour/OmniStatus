@@ -8,16 +8,12 @@
 
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <TelnetStream.h>
 
 #if defined(ESP32_RTOS) && defined(ESP32)
 void ota_handle( void * parameter ) {
   for (;;) {
-    static int i = 0;
-
     ArduinoOTA.handle();
     delay(3500);
-
   }
 }
 #endif
@@ -85,7 +81,6 @@ void setupOTA(const char* nameprefix, const char* ssid, const char* password) {
   });
 
   ArduinoOTA.begin();
-  TelnetStream.begin();
 
   Serial.println("OTA Initialized");
   Serial.print("IP address: ");
