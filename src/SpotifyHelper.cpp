@@ -27,6 +27,7 @@ String SpotifyHelper::hitAPIWithToken(String token) {
       }
       artists = artists + dequote(JSON.stringify(item["artists"][i]["name"]));
     }
+    Serial.println(album);
     return album + " - " + song + " - " + artists;
   } else {
     throw (-1);
@@ -44,6 +45,7 @@ void SpotifyHelper::refreshToken() {
   Serial.print("going to fetch");
   Response response = fetch("https://accounts.spotify.com/api/token", options);
   JSONVar resultJSON = JSON.parse(response.text());
+  Serial.print(response.text());
   access_token = resultJSON["access_token"];
 }
 
