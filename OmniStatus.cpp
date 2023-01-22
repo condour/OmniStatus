@@ -98,7 +98,6 @@ void getNowPlaying(void *pvParameters) {
 void setup() {
 
   // initialize TelnetStream communication at 115200 bits per second:
-  //TelnetStream.begin(115200);
   int lcd_status;
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
   setupOTA("OmniStatus", ssid, wifi_password);
@@ -107,7 +106,7 @@ void setup() {
   {
     // hd44780 has a fatalError() routine that blinks an led if possible
     // begin() failed so blink error code using the onboard LED if possible
-    hd44780::fatalError(lcd_status); // does not return
+  //   hd44780::fatalError(lcd_status); // does not return
   }
   delay(500);
   pinMode(button1.PIN, INPUT_PULLUP);
