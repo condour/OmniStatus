@@ -13,7 +13,7 @@
 #include <hd44780ioClass/hd44780_I2Cexp.h> // i2c expander i/o class header
 #include <TimeLib.h>
 #include "SpotifyHelper.h"
-
+#include "DisplayHelper.h"
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
 #else
@@ -28,6 +28,7 @@ hd44780_I2Cexp lcd; // declare lcd object: auto locate & auto config expander ch
 struct tm timeinfo;
 SpotifyHelper spotifyHelper;
 GarageHelper garageHelper;
+DisplayHelper displayHelper;
 // LCD geometry
 const int LCD_COLS = 16;
 const int LCD_ROWS = 2;
@@ -102,12 +103,7 @@ void setup() {
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
   setupOTA("OmniStatus", ssid, wifi_password);
   Serial.begin(115200);
-  if (lcd_status) // non zero status means it was unsuccesful
-  {
-    // hd44780 has a fatalError() routine that blinks an led if possible
-    // begin() failed so blink error code using the onboard LED if possible
-  //   hd44780::fatalError(lcd_status); // does not return
-  }
+  displayHelper.init();
   delay(500);
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, isr, FALLING);
@@ -212,30 +208,11 @@ void updateClock(void *pvParameters) {
   }
 }
 
-void render(void *pvParameters) {
+ void render(void *pvParameters) {
   for (;;) {
-    lcd.setCursor(0, 0);
-
-    if (garageStatus == 1) {
-      lcd.write("            Shut");
-    } else if (garageStatus == 0) {
-      lcd.write("            Open");
-    } else {
-      lcd.write("            ????");
-    }
-    // add spaces to beginning and end
-    String displaySongString = clearString + spotifyHelper.lastsong + clearString;
-    String stringToPrint = displaySongString.substring(songOffset, songOffset + 16);
-
-    lcd.setCursor(0, 1);
-    lcd.print(stringToPrint);
-    if (songOffset < displaySongString.length() - 1) {
-      songOffset++;
-    } else {
-      songOffset = 0;
-    }
-
-    vTaskDelay(250);
+    String lastsong = spotifyHelper.lastsong;
+    displayHelper.showSpotifyInfo(spotifyHelper.lastsong);
+    vTaskDelay(5000);
   }
 }
 
