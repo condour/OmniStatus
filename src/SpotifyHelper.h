@@ -1,25 +1,21 @@
-#ifndef SPOTIFYHELPER_H
-#define SPOTIFYHELPER_H
 #include <HTTPClient.h>
 #include "Fetch.h"
 #include <Arduino_JSON.h>
-
+#ifndef SPOTIFY_OBJECT_H
+#include "SpotifyObject.h"
+#endif
 extern const char* BASIC_AUTH;
 extern const char* refresh_token;
 
 class SpotifyHelper {
   public:
     SpotifyHelper(void);
-    String lastsong;
-    int songOffset;
-    void getNowPlaying();
+    SpotifyObject getNowPlaying(void);
   private:
     String dequote(String str);
     String access_token;
-    String thissong;
+    SpotifyObject currentSpotifyObject;
     void refreshToken(void);
-    String hitAPIWithToken(String token);
-
+    SpotifyObject hitAPIWithToken(String token);
 };
 
-#endif

@@ -14,6 +14,7 @@
 #include <TimeLib.h>
 #include "SpotifyHelper.h"
 #include "DisplayHelper.h"
+
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
 #else
@@ -57,7 +58,7 @@ void connectWiFi() {
 
 
 void checkToggle(void *pvParameters);
-
+void getNowPlaying(void *pvParameters);
 
 struct Button {
   const uint8_t PIN;
@@ -90,10 +91,6 @@ void setClock() {
   Serial.print(asctime(&timeinfo));
 }
 
-void getNowPlaying(void *pvParameters) {
-  spotifyHelper.getNowPlaying();
-}
-
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -115,15 +112,6 @@ void setup() {
     getNowPlaying,
     "getNowPlaying",
     10000,
-    NULL,
-    1,
-    NULL,
-    ARDUINO_RUNNING_CORE
-  );
-  xTaskCreatePinnedToCore(
-    render,
-    "render",
-    2048,
     NULL,
     1,
     NULL,
@@ -188,6 +176,17 @@ void loop()
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
+
+void getNowPlaying(void *pvParameters) {
+  for(;;) {
+   SpotifyObject temp = spotifyHelper.getNowPlaying();
+   displayHelper.setSpotifyInfo(temp);
+   vTaskDelay(1000);
+  }
+}
+
+
+
 void checkToggle(void *pvParameters) {
   for (;;) {
     if (button1.numberKeyPresses > 0) {
@@ -208,17 +207,11 @@ void updateClock(void *pvParameters) {
   }
 }
 
- void render(void *pvParameters) {
-  for (;;) {
-    String lastsong = spotifyHelper.lastsong;
-    displayHelper.showSpotifyInfo(spotifyHelper.lastsong);
-    vTaskDelay(5000);
-  }
-}
 
 void checkGarageStatus(void *pvParameters) {
   for (;;) {
     garageStatus = garageHelper.getStatus();
+    displayHelper.setGarageStatus(garageStatus);
     vTaskDelay(5000);
   }
 }

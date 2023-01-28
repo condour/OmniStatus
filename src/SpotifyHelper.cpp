@@ -1,20 +1,21 @@
 #include "SpotifyHelper.h"
 SpotifyHelper::SpotifyHelper(void) {
-  lastsong = thissong = "";
-  songOffset = 0;
+  currentSpotifyObject = {"","",""};
 }
 
 String SpotifyHelper::dequote(String str) {
   return str.substring(1, str.length() - 1);
 }
 
-String SpotifyHelper::hitAPIWithToken(String token) {
+SpotifyObject SpotifyHelper::hitAPIWithToken(String token) {
   RequestOptions options;
   options.method = "GET";
   options.headers["Authorization"] = "Bearer " + token;
+  SpotifyObject spotifyObject;
   Response response = fetch("https://api.spotify.com/v1/me/player/currently-playing", options);
   int status = response.status;
   if (status == 200) {
+    
     Serial.println(status);
     JSONVar resultJSON = JSON.parse(response.text());
     JSONVar item = resultJSON["item"];
@@ -27,8 +28,13 @@ String SpotifyHelper::hitAPIWithToken(String token) {
       }
       artists = artists + dequote(JSON.stringify(item["artists"][i]["name"]));
     }
+    Serial.println("about to assign in spotifyhelper hitAPi");
+    spotifyObject.song = song;
+    spotifyObject.artists = artists;
+    spotifyObject.album = album;
+    Serial.println("going to return soon");
     Serial.println(album);
-    return album + " - " + song + " - " + artists;
+    return spotifyObject;
   } else {
     throw (-1);
   }
@@ -49,16 +55,12 @@ void SpotifyHelper::refreshToken() {
   access_token = resultJSON["access_token"];
 }
 
-void SpotifyHelper::getNowPlaying() {
-  for (;;) {
+SpotifyObject SpotifyHelper::getNowPlaying() {
     // use token to hit api
     try {
       if (access_token.length() > 0) {
-        thissong = hitAPIWithToken(access_token);
-        if (thissong != lastsong) {
-          songOffset = 0;
-          lastsong = thissong;
-        }
+        currentSpotifyObject = hitAPIWithToken(access_token);
+        Serial.println("assigned spotifyObject in spotify helper");
       } else {
         refreshToken();
       }
@@ -70,7 +72,5 @@ void SpotifyHelper::getNowPlaying() {
       refreshToken();
     }
     // display song
-
-    vTaskDelay(15000);
-  }
+    return currentSpotifyObject;
 }

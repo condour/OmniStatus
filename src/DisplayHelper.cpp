@@ -15,6 +15,7 @@
 // #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 
+
 // select the display constructor line in one of the following files (old style):
 //#include "GxEPD2_display_selection.h"
 //#include "GxEPD2_display_selection_added.h"
@@ -22,7 +23,6 @@
 
 // or select the display class and display driver class in the following file (new style):
 #include "display_support/GxEPD2_display_selection_new_style.h"
-
 
 #if defined(ESP8266) || defined(ESP32)
 #include <StreamString.h>
@@ -38,37 +38,66 @@ class PrintString : public Print, public String
 };
 #endif
 
-DisplayHelper::DisplayHelper(void) {
+int16_t MARGIN = 10;
+int CHARS_PER_LINE = 18;
 
+DisplayHelper::DisplayHelper(void) {
+  SpotifyObject currentSpotifyObject = {"","",""};
 }
+
 void DisplayHelper::init(void) {
-  Serial.println("got right before reset");
+  isClosed = true;
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
-  Serial.println("got beyond it");
+  display.setFullWindow();
+  display.clearScreen();
+  xCurs = MARGIN;
+  yCurs = MARGIN;
 }
-void DisplayHelper::showSpotifyInfo(String str) {
-    Serial.println("should be in showSpotifyInfo");
-  display.setRotation(1);
+void DisplayHelper::setSpotifyInfo(SpotifyObject spotifyObject) {
+  Serial.println("in display helper");
+  Serial.println(currentSpotifyObject.song);
+  if(currentSpotifyObject.song != spotifyObject.song || currentSpotifyObject.artists != spotifyObject.artists || currentSpotifyObject.album != currentSpotifyObject.album) {
+    Serial.println("Should render");
+    currentSpotifyObject = spotifyObject;
+    render();
+  }
+}
+void DisplayHelper::setGarageStatus(bool garageStatus) {
+  if(isClosed != garageStatus) {
+    isClosed = garageStatus;
+    render();
+  }
+}
+
+void DisplayHelper::printLine(String str) {
+  display.setRotation(2);
   display.setFont(&FreeMonoBold9pt7b);
- 
   display.setTextColor(GxEPD_BLACK);
   int16_t tbx, tby; uint16_t tbw, tbh;
-  display.getTextBounds(str, 0, 0, &tbx, &tby, &tbw, &tbh);
-  Serial.println(tbx);
+  display.getTextBounds(str, xCurs, yCurs, &tbx, &tby, &tbw, &tbh);
+  
   // center bounding box by transposition of origin:
-  uint16_t x = ((display.width() - tbw) / 2) - tbx;
-  uint16_t y = ((display.height() - tbh) / 2) - tby;
-  display.setFullWindow();
+  uint16_t x = MARGIN;
+  uint16_t y = MARGIN;
+ //   uint16_t wh = FreeMonoBold9pt7b.yAdvance;
+  // uint16_t wy = (display.height() * 3 / 4) - wh / 2;
+  Serial.println(String(tbx) + " " +String(tby) + " " +String(tbw) + " " +String(tbh));
+  display.setPartialWindow(tbx, tby, tbw, tbh);
+  // display.setFullWindow();
   display.firstPage();
+
   Serial.println(display.width());
   do
   {
-    Serial.print(x);
-    Serial.print(" ");
-    Serial.print(y + "\n");
     display.fillScreen(GxEPD_WHITE);
     display.setCursor(x, y);
-    display.print(str);
+    display.print(currentSpotifyObject.song);
   }
   while (display.nextPage());
+}
+
+void DisplayHelper::render() {
+  array arr = [];
+  currentSpotifyObject.split(arr&)
+  printLine(currentSpotifyObject.song);
 }
