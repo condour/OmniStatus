@@ -14,7 +14,6 @@
 #include <TimeLib.h>
 #include "SpotifyHelper.h"
 
-#include <TelnetStream.h>
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
 #else
@@ -35,7 +34,11 @@ const int LCD_ROWS = 2;
 
 int garageStatus = -1;
 
-
+/* FUNCTION DEFINITIONS */
+void TaskBlink(void *pvParameters);
+void keepWiFiAlive(void *pvParameters);
+void checkGarageStatus(void *pvParameters);
+void setClock();
 
 int songOffset = 0;
 
@@ -45,7 +48,7 @@ void connectWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, wifi_password);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    TelnetStream.print("WiFi Failed!\n");
+    Serial.print("WiFi Failed!\n");
     ESP.restart();
   }
   setClock();
@@ -70,20 +73,20 @@ void IRAM_ATTR isr() {
 void setClock() {
   configTime(0, 0, "pool.ntp.org");
 
-  TelnetStream.print(F("Waiting for NTP time sync: "));
+  Serial.print(F("Waiting for NTP time sync: "));
   time_t nowSecs = time(nullptr);
   while (nowSecs < 8 * 3600 * 2) {
     delay(500);
-    TelnetStream.print(F("."));
+    Serial.print(F("."));
     yield();
     nowSecs = time(nullptr);
   }
 
-  TelnetStream.println();
+  Serial.println();
 
   gmtime_r(&nowSecs, &timeinfo);
-  TelnetStream.print(F("Current time: "));
-  TelnetStream.print(asctime(&timeinfo));
+  Serial.print(F("Current time: "));
+  Serial.print(asctime(&timeinfo));
 }
 
 void getNowPlaying(void *pvParameters) {
@@ -95,15 +98,15 @@ void getNowPlaying(void *pvParameters) {
 void setup() {
 
   // initialize TelnetStream communication at 115200 bits per second:
-  //TelnetStream.begin(115200);
   int lcd_status;
   lcd_status = lcd.begin(LCD_COLS, LCD_ROWS);
   setupOTA("OmniStatus", ssid, wifi_password);
+  Serial.begin(115200);
   if (lcd_status) // non zero status means it was unsuccesful
   {
     // hd44780 has a fatalError() routine that blinks an led if possible
     // begin() failed so blink error code using the onboard LED if possible
-    hd44780::fatalError(lcd_status); // does not return
+  //   hd44780::fatalError(lcd_status); // does not return
   }
   delay(500);
   pinMode(button1.PIN, INPUT_PULLUP);
@@ -192,8 +195,8 @@ void loop()
 void checkToggle(void *pvParameters) {
   for (;;) {
     if (button1.numberKeyPresses > 0) {
-      TelnetStream.print("TOGGLE at: ");
-      TelnetStream.println(button1.numberKeyPresses);
+      Serial.print("TOGGLE at: ");
+      Serial.println(button1.numberKeyPresses);
       button1.numberKeyPresses = 0;
       garageHelper.toggle();
 
@@ -281,12 +284,4 @@ void keepWiFiAlive(void * pvParameters) {
     ArduinoOTA.handle();
     vTaskDelay(500);
   }
-  //  for (;;) {
-  //    TelnetStream.println("checking wifi");
-  //    if (WiFi.status() != WL_CONNECTED) {
-  //      connectWiFi();
-  //    } else {
-  //      vTaskDelay(60000);
-  //    }
-  //  }
 }

@@ -1,5 +1,4 @@
 #include "SpotifyHelper.h"
-
 SpotifyHelper::SpotifyHelper(void) {
   lastsong = thissong = "";
   songOffset = 0;
@@ -42,7 +41,7 @@ void SpotifyHelper::refreshToken() {
 
   options.body = refresh_token;
   options.headers["Content-Length"] = options.body.text().length();
-  Serial.println("going to fetch");
+  Serial.print("going to fetch");
   Response response = fetch("https://accounts.spotify.com/api/token", options);
   JSONVar resultJSON = JSON.parse(response.text());
   access_token = resultJSON["access_token"];
@@ -63,8 +62,8 @@ void SpotifyHelper::getNowPlaying() {
       }
 
     } catch (int whichError) {
-      Serial.println("i'm in the catch");
-      Serial.println(whichError);
+      Serial.print("i'm in the catch");
+      Serial.print(whichError);
       // if token fails, refresh token then reuse
       refreshToken();
     }
