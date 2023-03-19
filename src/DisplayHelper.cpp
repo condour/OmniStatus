@@ -14,6 +14,7 @@
 // #include <GxEPD2_3C.h>
 // #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
+#include <Regexp.h>
 
 
 // select the display constructor line in one of the following files (old style):
@@ -39,6 +40,7 @@ class PrintString : public Print, public String
 #endif
 
 int16_t MARGIN = 10;
+int16_t LINE_SPACING = 5;
 int CHARS_PER_LINE = 18;
 
 DisplayHelper::DisplayHelper(void) {
@@ -50,54 +52,100 @@ void DisplayHelper::init(void) {
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   display.setFullWindow();
   display.clearScreen();
-  xCurs = MARGIN;
+  xCurs = 0;
   yCurs = MARGIN;
 }
 void DisplayHelper::setSpotifyInfo(SpotifyObject spotifyObject) {
-  Serial.println("in display helper");
-  Serial.println(currentSpotifyObject.song);
-  if(currentSpotifyObject.song != spotifyObject.song || currentSpotifyObject.artists != spotifyObject.artists || currentSpotifyObject.album != currentSpotifyObject.album) {
-    Serial.println("Should render");
+  if(currentSpotifyObject.song != spotifyObject.song) {
     currentSpotifyObject = spotifyObject;
-    render();
+    render(true);
   }
 }
 void DisplayHelper::setGarageStatus(bool garageStatus) {
   if(isClosed != garageStatus) {
     isClosed = garageStatus;
-    render();
+    render(true);
   }
 }
 
-void DisplayHelper::printLine(String str) {
+void DisplayHelper::printLine(String str, bool shouldClear) {
+  int16_t lastYCurs = yCurs;
+  if(shouldClear) {
+    yCurs = MARGIN;
+  }
   display.setRotation(2);
+  Serial.println("coming into printLine with " + String(yCurs));
   display.setFont(&FreeMonoBold9pt7b);
   display.setTextColor(GxEPD_BLACK);
   int16_t tbx, tby; uint16_t tbw, tbh;
   display.getTextBounds(str, xCurs, yCurs, &tbx, &tby, &tbw, &tbh);
-  
-  // center bounding box by transposition of origin:
-  uint16_t x = MARGIN;
-  uint16_t y = MARGIN;
- //   uint16_t wh = FreeMonoBold9pt7b.yAdvance;
-  // uint16_t wy = (display.height() * 3 / 4) - wh / 2;
+  int16_t realX = round((display.width() * 0.5) - (tbw * 0.5));
   Serial.println(String(tbx) + " " +String(tby) + " " +String(tbw) + " " +String(tbh));
-  display.setPartialWindow(tbx, tby, tbw, tbh);
-  // display.setFullWindow();
+  Serial.println(realX);
+  display.setPartialWindow(tbx, tby, display.width(), shouldClear ? lastYCurs : tbh);
   display.firstPage();
-
-  Serial.println(display.width());
   do
   {
     display.fillScreen(GxEPD_WHITE);
-    display.setCursor(x, y);
-    display.print(currentSpotifyObject.song);
+    display.setCursor(realX, yCurs);
+    display.print(str);
   }
   while (display.nextPage());
+  yCurs += tbh + LINE_SPACING;
 }
 
-void DisplayHelper::render() {
-  array arr = [];
-  currentSpotifyObject.split(arr&)
-  printLine(currentSpotifyObject.song);
+void DisplayHelper::breakStringAndCenter(String str) {
+  int counter = 0;
+  int lastWord = 0;
+  int lastLineEnd = 0;
+  int lineLength = 0;
+  while(counter <= str.length()) {
+    int foo[] = {counter, lastWord, lastLineEnd, lineLength};
+    if(str.charAt(counter) == ' ') {
+      lastWord = counter;
+    }
+    if(String(str.charAt(counter)) == "(" || String(str.charAt(counter)) == "-") {
+      // truncate here
+
+    }
+
+    if(lineLength >= CHARS_PER_LINE) {
+      printLine(str.substring(lastLineEnd, lastWord), false);
+      lastLineEnd = lastWord+1;
+      lineLength = 0;
+    } else {
+      lineLength++; 
+    }
+    counter++;
+  }
+  printLine(str.substring(lastLineEnd, counter), false);
+}
+
+void DisplayHelper::printDivider() {
+  yCurs += LINE_SPACING * 2;
+  display.setPartialWindow(0, yCurs, display.width(), 1);
+  display.firstPage();
+    do
+  {
+  display.drawFastHLine(0, yCurs, display.width(), GxEPD_BLACK);
+  } while (display.nextPage());
+  yCurs += LINE_SPACING * 2;
+  Serial.println("coming out of printDivider with " + String(yCurs));
+}
+
+void DisplayHelper::render(bool doFull) {
+  if(doFull) {
+    display.setFullWindow();
+    display.firstPage();
+    do {
+
+    display.clearScreen();
+    }  while (display.nextPage());
+    yCurs = MARGIN;
+  }
+  breakStringAndCenter(currentSpotifyObject.song);
+  printDivider();
+  breakStringAndCenter(currentSpotifyObject.album);
+  printDivider();
+  breakStringAndCenter(currentSpotifyObject.artists);
 }

@@ -10,10 +10,12 @@ class DisplayHelper {
     void setGarageStatus(bool garageStatus);
     void init(void);
   private:
-    void render(void);
+    void render(bool doFull);
     SpotifyObject currentSpotifyObject;
     bool isClosed;
-    void printLine(String str);
+    void printLine(String str, bool shouldClear);
+    void breakStringAndCenter(String str);
+    void printDivider(void);
     int xCurs;
     int yCurs;
 };
