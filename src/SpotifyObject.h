@@ -1,4 +1,4 @@
-#include <String.h>
+#include <WString.h>
 #ifndef SPOTIFY_OBJECT_H
 #define SPOTIFY_OBJECT_H
 struct SpotifyObject {
