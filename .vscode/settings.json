@@ -1,3 +1,8 @@
 {
-  "cmake.sourceDirectory": "/home/condour/projects/OmniStatus/.pio/libdeps/node32s/Adafruit BusIO"
+  "cmake.sourceDirectory": "/home/condour/projects/OmniStatus/.pio/libdeps/node32s/Adafruit BusIO",
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#2B1E74",
+    "titleBar.activeBackground": "#3C29A2",
+    "titleBar.activeForeground": "#FCFCFE"
+  }
 }
